@@ -1,0 +1,226 @@
+Build a web app called Mira AI" — a home health 
+triage reference tool that sends a user's symptoms and uploaded 
+files to 3 AI models simultaneously, then compares and summarizes 
+their responses so the user can decide whether to go to the ER, 
+see a doctor, or monitor at home.
+
+---
+
+WHAT THIS APP IS:
+A triage compass, not a diagnosis engine. The entire purpose is 
+to help non-medical users (worried parents on a Saturday night, 
+travelers who develop a mystery rash) get a quick, honest 
+reference point on urgency — not a diagnosis, not medical advice, 
+not a prescription. The app must behave consistently with that 
+framing at every layer: UI, prompts, and output language.
+
+---
+
+DISCLAIMER GATE (required before any interaction):
+Show a mandatory disclaimer screen that the user must explicitly 
+accept before accessing the app. It must state:
+- This tool provides AI-generated reference information only
+- It is not medical advice, not a diagnosis, and not a 
+  substitute for a doctor
+- No medications or treatments will be recommended
+- In a life-threatening emergency, call 911 immediately
+- By continuing, the user acknowledges this and agrees to 
+  consult a healthcare professional for any health concern
+The rest of the app must be completely inaccessible until the 
+user clicks "I understand — continue."
+
+---
+
+INPUT LAYER:
+1. Symptom text field
+   - Large textarea
+   - Placeholder example: "My 7-year-old has had a fever of 
+     103°F for 2 days, sore throat, and won't eat. No rash."
+   - Required before analysis can run
+
+2. File upload (multimodal)
+   - Accept: images (jpg, png, etc.) and PDF documents
+   - Max 4 files
+   - Show thumbnail previews for images, file icon for PDFs
+   - Each file has an individual remove button
+   - Use cases: rash photos, lab results, prescription documents, 
+     insurance EOBs
+
+---
+
+AI MODEL PANEL (3 models in parallel):
+Call all 3 models simultaneously using Promise.all — never 
+sequentially. Each model receives the identical structured prompt 
+and must return a structured JSON response.
+
+Models to call:
+- Claude (claude-sonnet-4-20250514 via Anthropic API)
+- GPT-4o (via OpenAI API)
+- Gemini 1.5 Pro (via Google Generative Language API)
+
+System prompt for ALL 3 models (use this exact language):
+"""
+You are a medical triage assistant helping a consumer decide 
+urgency level for a health concern.
+
+CRITICAL RULES:
+- NEVER prescribe medications, dosages, or specific treatments
+- NEVER diagnose conditions definitively  
+- ALWAYS frame findings as "considerations to discuss with 
+  a doctor"
+- When uncertain about urgency, escalate — never reassure falsely
+- Output ONLY valid JSON, no markdown fences
+
+Return this exact JSON structure:
+{
+  "urgency": <1-4 integer>,
+  "urgency_label": "<one of: Seek emergency care now | See a 
+    doctor within 24 hours | Monitor at home, see doctor if 
+    worsens | Low concern, monitor>",
+  "summary": "<2-3 sentence plain-language summary framed as 
+    questions or considerations to bring to a doctor>",
+  "considerations": ["<up to 3 things to mention to a doctor 
+    or watch for>"],
+  "reasoning": "<1 sentence explaining the urgency level>"
+}
+
+Urgency scale:
+1 = ER now
+2 = Doctor within 24 hours  
+3 = Monitor / schedule appointment
+4 = Low concern
+"""
+
+Images: send as base64 with correct media_type
+PDFs: extract text content and include in the prompt as text
+
+---
+
+URGENCY ESCALATION RULE (critical):
+- Collect all urgency integers from responding models
+- Display the LOWEST number (highest urgency) — never average
+- If ANY model returns urgency 1, the entire app shows 
+  urgency 1 regardless of what the other models say
+- Never average urgency scores down
+
+---
+
+URGENCY BANNER (shown above model cards after analysis):
+Display a full-width colored banner showing the highest-urgency 
+result. Four tiers:
+
+1 — Red background, ambulance icon
+    Title: "Seek emergency care now"
+    Subtitle: "Call 911 or go to the ER immediately."
+
+2 — Amber background, clock icon
+    Title: "See a doctor within 24 hours"  
+    Subtitle: "Contact your doctor or urgent care today."
+
+3 — Green background, home/heart icon
+    Title: "Monitor at home"
+    Subtitle: "Schedule an appointment if symptoms persist 
+    or worsen."
+
+4 — Blue background, checkmark icon
+    Title: "Low concern — monitor"
+    Subtitle: "Rest and monitor. Seek care if anything changes."
+
+---
+
+MODEL CARDS (3 cards in a grid, one per model):
+Each card shows:
+- Model name (Claude / GPT-4o / Gemini)
+- Urgency pill badge (colored by urgency tier)
+- Summary text (2-3 sentences, framed as questions for a doctor)
+- "Ask your doctor about:" followed by the considerations list
+- Loading spinner while awaiting response
+- Graceful error state if a model fails ("Could not reach 
+  this model")
+
+---
+
+CONSENSUS / DISAGREEMENT PANEL:
+After all models respond, show a summary panel below the cards 
+analyzing where models agree or disagree:
+
+- All 3 urgency levels match → 
+  Green dot: "All models agree on urgency level — this 
+  consensus increases confidence in the assessment."
+
+- 2 of 3 match (differ by 1 tier) →  
+  Amber dot: "Models differ by one tier on urgency. Out of 
+  caution, the higher urgency recommendation is shown."
+
+- All 3 disagree significantly →
+  Red dot: "Models disagree significantly on urgency level. 
+  This uncertainty is itself a reason to consult a healthcare 
+  professional."
+
+- Also show: common considerations that appeared across 
+  multiple models
+
+- Always end with a reminder dot: "These are AI-generated 
+  observations, not diagnoses. Use this as a starting point 
+  for a conversation with a doctor."
+
+---
+
+PERSISTENT BOTTOM DISCLAIMER:
+Show on every results screen, below the consensus panel:
+"These assessments are generated by AI and are not medical 
+diagnoses. Always consult a licensed healthcare professional. 
+This tool does not prescribe, diagnose, or provide medical 
+treatment of any kind."
+
+---
+
+RESET:
+"Start a new assessment" button clears all inputs, 
+files, and results.
+
+---
+
+WHAT THE APP MUST NEVER DO:
+- Recommend any specific medication, dosage, or treatment
+- Use language like "you have" or "this is" (diagnosis framing)
+- Average urgency scores down when models disagree
+- Allow the results screen to be accessed before disclaimer 
+  acceptance
+- Store or transmit any user health data beyond the API calls
+- Show results without the bottom disclaimer visible
+
+---
+
+API KEY CONFIGURATION:
+Accept the following environment variables:
+- ANTHROPIC_API_KEY
+- OPENAI_API_KEY  
+- GOOGLE_API_KEY (or GEMINI_API_KEY)
+
+All API calls must be made from a secure backend/server 
+function — never expose keys in client-side code.
+
+---
+
+TECH STACK (flexible — adapt to the platform):
+- Frontend: React or plain HTML/CSS/JS
+- API calls: server-side functions or secure backend routes
+- File handling: base64 encode images for vision APIs, 
+  extract text from PDFs before sending
+- Parallel calls: Promise.all for all 3 models simultaneously
+- Error handling: each model call wrapped in try/catch with 
+  graceful UI fallback
+
+---
+
+DESIGN DIRECTION:
+- Clean, calm, medical-adjacent — not clinical or scary
+- Clear visual hierarchy: disclaimer → input → analyze → 
+  urgency banner → model cards → consensus → disclaimer
+- Mobile-friendly (the primary user is on a phone at 11pm)
+- Urgency colors: Red (ER), Amber (doctor soon), 
+  Green (monitor), Blue (low concern)
+- Loading spinners on each model card while awaiting response
+- No dark patterns, no upsells, no distractions
+

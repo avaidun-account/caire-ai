@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Mira AI — Home health triage API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: triage
+    description: AI triage operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /triage:
+    post:
+      operationId: runTriage
+      tags: [triage]
+      summary: Run AI triage
+      description: Send symptoms and optional files to all 3 AI models simultaneously and return structured triage results
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriageInput"
+      responses:
+        "200":
+          description: Triage results from all models
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,80 @@ components:
           type: string
       required:
         - status
-
+    TriageFile:
+      type: object
+      required: [name, mimeType, content]
+      properties:
+        name:
+          type: string
+          description: Original filename
+        mimeType:
+          type: string
+          description: MIME type (image/jpeg, image/png, application/pdf, etc.)
+        content:
+          type: string
+          description: Base64-encoded file content
+    TriageInput:
+      type: object
+      required: [symptoms]
+      properties:
+        symptoms:
+          type: string
+          minLength: 1
+          description: Description of symptoms
+        files:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/TriageFile"
+    ModelResult:
+      type: object
+      required: [model, success]
+      properties:
+        model:
+          type: string
+          description: Model name (Claude / GPT / Gemini)
+        success:
+          type: boolean
+        urgency:
+          type: ["integer", "null"]
+          description: "Urgency level 1-4 (1=ER now, 4=low concern)"
+        urgency_label:
+          type: ["string", "null"]
+        summary:
+          type: ["string", "null"]
+        considerations:
+          type: ["array", "null"]
+          items:
+            type: string
+        reasoning:
+          type: ["string", "null"]
+        error:
+          type: ["string", "null"]
+          description: Error message if model call failed
+    TriageResult:
+      type: object
+      required: [results, consensus_urgency, agreement_level]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelResult"
+        consensus_urgency:
+          type: integer
+          description: Lowest (highest urgency) of all successful model responses
+        agreement_level:
+          type: string
+          enum: [full, partial, none]
+          description: "full=all agree, partial=2 agree, none=all differ"
+        common_considerations:
+          type: array
+          items:
+            type: string
+          description: Considerations that appeared in multiple model responses
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
