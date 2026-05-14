@@ -2,6 +2,452 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* ===== Caire AI — Editorial Design ===== */
+body {
+  background: #F7F5F0 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  color: #1C1A17 !important;
+}
+
+/* Nav */
+.caire-nav {
+  background: #F7F5F0;
+  border-bottom: 0.5px solid #D8D4CC;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.caire-wordmark {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: #1C1A17;
+  letter-spacing: -0.02em;
+}
+.caire-wordmark span {
+  font-size: 11px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  color: #8A8478;
+  margin-left: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.caire-nav-tag {
+  font-size: 11px;
+  color: #8A8478;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 0.5px solid #D8D4CC;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* Gate */
+.caire-gate {
+  min-height: calc(100vh - 57px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+}
+.caire-gate-inner { max-width: 460px; width: 100%; }
+.caire-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8A8478;
+  margin-bottom: 1rem;
+}
+.caire-gate-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 34px;
+  line-height: 1.12;
+  color: #1C1A17;
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.02em;
+}
+.caire-gate-title em { font-style: italic; }
+.caire-gate-body {
+  font-size: 14px;
+  color: #5A5650;
+  line-height: 1.8;
+  margin-bottom: 1rem;
+}
+.caire-gate-list { list-style: none; margin-bottom: 2rem; padding: 0; }
+.caire-gate-list li {
+  font-size: 13px;
+  color: #5A5650;
+  padding: 8px 0;
+  border-top: 0.5px solid #E8E4DC;
+  display: flex;
+  gap: 12px;
+  line-height: 1.5;
+}
+.caire-gate-list li:last-child { border-bottom: 0.5px solid #E8E4DC; }
+.caire-gate-list li::before { content: '—'; color: #C8C4BC; flex-shrink: 0; }
+
+/* Buttons */
+.caire-btn-dark {
+  width: 100%;
+  padding: 14px 20px;
+  background: #1C1A17;
+  color: #F7F5F0;
+  border: none;
+  border-radius: 3px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 0.15s;
+}
+.caire-btn-dark:hover { background: #2E2B26; }
+
+/* Sections */
+.caire-section {
+  padding: 2rem 1.5rem 0;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.caire-field-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8A8478;
+  font-weight: 500;
+  margin-bottom: 0.625rem;
+}
+
+/* Textarea */
+.caire-textarea {
+  width: 100%;
+  background: #FFFFFF;
+  border: 0.5px solid #D8D4CC;
+  border-radius: 3px;
+  padding: 14px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: #1C1A17;
+  line-height: 1.7;
+  resize: vertical;
+  min-height: 100px;
+  outline: none;
+  transition: border-color 0.15s;
+  display: block;
+}
+.caire-textarea::placeholder { color: #C8C4BC; }
+.caire-textarea:focus { border-color: #8A8478; }
+
+/* Files */
+.caire-files-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 0.75rem;
+}
+.caire-file-thumb {
+  position: relative;
+  border: 0.5px solid #D8D4CC;
+  border-radius: 3px;
+  background: #FFFFFF;
+  overflow: hidden;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+.caire-file-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.caire-file-thumb span {
+  font-size: 9px;
+  color: #8A8478;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  padding: 0 2px;
+  position: relative;
+  z-index: 1;
+}
+.caire-file-thumb button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0,0,0,0.5);
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 2;
+  padding: 0;
+}
+.caire-file-icon { color: #8A8478; }
+
+/* Upload zone */
+.caire-upload {
+  margin-top: 0.75rem;
+  border: 0.5px dashed #D8D4CC;
+  border-radius: 3px;
+  padding: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  background: #FDFCF9;
+  transition: background 0.15s;
+}
+.caire-upload:hover { background: #F0EDE6; }
+.caire-upload-icon { font-size: 20px; color: #C8C4BC; }
+.caire-upload p { font-size: 12px; color: #8A8478; margin-top: 6px; line-height: 1.5; }
+
+/* Analyze button */
+.caire-analyze-btn {
+  width: 100%;
+  padding: 14px;
+  background: #1C1A17;
+  color: #F7F5F0;
+  border: none;
+  border-radius: 3px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.caire-analyze-btn:hover:not(:disabled) { background: #2E2B26; }
+.caire-analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.caire-loading {
+  text-align: center;
+  font-size: 13px;
+  color: #8A8478;
+  padding: 14px;
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+.caire-error {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #A32D2D;
+}
+
+/* Divider */
+.caire-divider {
+  height: 0.5px;
+  background: #E8E4DC;
+  margin: 2rem auto 0;
+  max-width: 760px;
+  padding: 0 1.5rem;
+}
+
+/* Urgency */
+.caire-urgency-wrap { padding: 2rem 1.5rem 0; max-width: 760px; margin: 0 auto; }
+.caire-urgency {
+  border-radius: 3px;
+  padding: 1.75rem 2rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+.caire-urg-num {
+  font-family: 'DM Serif Display', serif;
+  font-size: 64px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.caire-urg-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+  line-height: 1.2;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.caire-urg-sub { font-size: 13px; opacity: 0.72; line-height: 1.5; }
+
+/* Cards */
+.caire-cards-wrap { padding: 2rem 1.5rem 0; max-width: 760px; margin: 0 auto; }
+.caire-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.caire-card {
+  background: #FFFFFF;
+  border: 0.5px solid #D8D4CC;
+  border-radius: 3px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.caire-card-model {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8A8478;
+  font-weight: 500;
+}
+.caire-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 2px;
+  width: fit-content;
+}
+.caire-card-summary { font-size: 12px; color: #3D3A35; line-height: 1.65; flex: 1; }
+.caire-card-asks {
+  font-size: 11px;
+  color: #8A8478;
+  line-height: 1.6;
+  border-top: 0.5px solid #F0EDE6;
+  padding-top: 8px;
+}
+.caire-card-asks strong {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  color: #C8C4BC;
+  font-weight: 500;
+}
+.caire-card-error { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #A32D2D; }
+
+/* Consensus */
+.caire-consensus-wrap { padding: 2rem 1.5rem 0; max-width: 760px; margin: 0 auto; }
+.caire-consensus {
+  background: #FFFFFF;
+  border: 0.5px solid #D8D4CC;
+  border-radius: 3px;
+  padding: 1.5rem 1.75rem;
+}
+.caire-c-header {
+  font-family: 'DM Serif Display', serif;
+  font-size: 19px;
+  color: #1C1A17;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.01em;
+}
+.caire-c-block {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 0.5px solid #F0EDE6;
+}
+.caire-c-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.caire-c-block-title {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #C8C4BC;
+  font-weight: 500;
+  margin-bottom: 0.625rem;
+}
+.caire-c-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 5px 0;
+  font-size: 13px;
+  color: #5A5650;
+  line-height: 1.6;
+}
+.caire-c-row strong { color: #1C1A17; font-weight: 500; }
+.caire-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.caire-dot-g { background: #639922; }
+.caire-dot-a { background: #BA7517; }
+.caire-dot-r { background: #A32D2D; }
+
+/* Disclaimer */
+.caire-disclaimer { max-width: 760px; margin: 1.5rem auto 0; padding: 0 1.5rem; }
+.caire-disclaimer-inner {
+  padding: 0.875rem 1rem;
+  border: 0.5px solid #E8E4DC;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #8A8478;
+  line-height: 1.7;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #FDFCF9;
+}
+
+/* Actions */
+.caire-actions {
+  max-width: 760px;
+  margin: 1rem auto 0;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.caire-btn-print {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 0.5px solid #D8D4CC;
+  border-radius: 3px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: #3D3A35;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.caire-btn-print:hover { background: #F0EDE6; }
+.caire-btn-reset {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: #C8C4BC;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.caire-btn-reset:hover { color: #5A5650; }
+
+@media (max-width: 600px) {
+  .caire-cards { grid-template-columns: 1fr; }
+  .caire-gate-title { font-size: 28px; }
+  .caire-urg-num { font-size: 48px; }
+  .caire-urg-title { font-size: 20px; }
+}
+
+@media print {
+  .caire-btn-print, .caire-btn-reset, .caire-analyze-btn,
+  .caire-upload, .caire-nav-tag { display: none !important; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

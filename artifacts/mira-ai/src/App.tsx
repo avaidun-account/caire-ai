@@ -1,37 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
-import { Badge } from "@/components/ui/badge";
 import { useRunTriage } from "@workspace/api-client-react";
 import type { TriageResult } from "@workspace/api-zod";
 import type { ModelResult } from "@workspace/api-zod";
-import { 
-  AlertCircle,
-  Ambulance, 
-  Clock, 
-  Home, 
-  CheckCircle2, 
-  UploadCloud, 
-  FileText, 
-  Image as ImageIcon, 
-  X,
-  ShieldAlert,
-  Info,
-  Printer
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { X, FileText, AlertCircle } from "lucide-react";
 
 const queryClient = new QueryClient();
 
-// Helper: escalation trigger text based on urgency level and model text
-function getEscalationTriggers(validResults: TriageResult["results"]): string {
+const URGENCY = {
+  1: { bg: "#FCEBEB", text: "#501313", num: "#A32D2D", label: "Seek emergency care now", sub: "Call 911 or go to the ER immediately.", pillBg: "#FCEBEB", pillText: "#791F1F", short: "Seek ER care" },
+  2: { bg: "#FAEEDA", text: "#412402", num: "#854F0B", label: "See a doctor within 24 hours", sub: "Contact your doctor or urgent care today.", pillBg: "#FAEEDA", pillText: "#633806", short: "See doctor soon" },
+  3: { bg: "#EAF3DE", text: "#173404", num: "#3B6D11", label: "Monitor at home", sub: "Schedule an appointment if symptoms persist or worsen.", pillBg: "#EAF3DE", pillText: "#27500A", short: "Monitor at home" },
+  4: { bg: "#E6F1FB", text: "#042C53", num: "#185FA5", label: "Low concern — monitor", sub: "Rest and monitor. Seek care if anything changes.", pillBg: "#E6F1FB", pillText: "#0C447C", short: "Low concern" },
+} as const;
+
+function getEscalationTriggers(validResults: ModelResult[]): string {
   const urgencies = validResults.map((r: ModelResult) => r.urgency as number).filter(Boolean);
   const urgencyLevel = urgencies.length > 0 ? Math.min(...urgencies) : 4;
   if (urgencyLevel === 1) return "Go to the ER immediately — do not wait.";
@@ -42,65 +26,27 @@ function getEscalationTriggers(validResults: TriageResult["results"]): string {
   return "Any significant worsening, new symptoms, or gut feeling something is wrong — seek care sooner.";
 }
 
-// Types for file handling
 type UploadedFile = {
   name: string;
   mimeType: string;
-  content: string; // base64
-  preview?: string; // object url for images
+  content: string;
+  preview?: string;
 };
 
-// Urgency details mapping
-const URGENCY_DETAILS = {
-  1: {
-    bg: "bg-red-500",
-    text: "text-white",
-    icon: Ambulance,
-    title: "Seek emergency care now",
-    desc: "Call 911 or go to the ER immediately.",
-    badgeClass: "bg-red-100 text-red-800 border-red-200"
-  },
-  2: {
-    bg: "bg-orange-500",
-    text: "text-white",
-    icon: Clock,
-    title: "See a doctor within 24 hours",
-    desc: "Contact your doctor or urgent care today.",
-    badgeClass: "bg-orange-100 text-orange-800 border-orange-200"
-  },
-  3: {
-    bg: "bg-green-600",
-    text: "text-white",
-    icon: Home,
-    title: "Monitor at home",
-    desc: "Schedule an appointment if symptoms persist or worsen.",
-    badgeClass: "bg-green-100 text-green-800 border-green-200"
-  },
-  4: {
-    bg: "bg-blue-500",
-    text: "text-white",
-    icon: CheckCircle2,
-    title: "Low concern — monitor",
-    desc: "Rest and monitor. Seek care if anything changes.",
-    badgeClass: "bg-blue-100 text-blue-800 border-blue-200"
-  }
-} as const;
-
 function TriageApp() {
-  const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState<boolean>(() => {
-    return localStorage.getItem("mira-disclaimer-accepted") === "true";
-  });
-  
+  const [hasAccepted, setHasAccepted] = useState<boolean>(() =>
+    localStorage.getItem("caire-accepted") === "true"
+  );
   const [symptoms, setSymptoms] = useState("");
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [result, setResult] = useState<TriageResult | null>(null);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const triageMutation = useRunTriage();
 
-  const handleAcceptDisclaimer = () => {
-    localStorage.setItem("mira-disclaimer-accepted", "true");
-    setHasAcceptedDisclaimer(true);
+  const handleAccept = () => {
+    localStorage.setItem("caire-accepted", "true");
+    setHasAccepted(true);
   };
 
   const handleReset = () => {
@@ -108,508 +54,372 @@ function TriageApp() {
     setFiles([]);
     setResult(null);
     triageMutation.reset();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (!selectedFiles.length) return;
-
-    if (files.length + selectedFiles.length > 4) {
-      alert("Maximum 4 files allowed.");
-      return;
-    }
-
-    selectedFiles.forEach(file => {
+    const selected = Array.from(e.target.files || []);
+    if (!selected.length) return;
+    if (files.length + selected.length > 4) { alert("Maximum 4 files."); return; }
+    selected.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64String = event.target?.result as string;
-        const base64Content = base64String.split(',')[1];
-        
-        const isImage = file.type.startsWith('image/');
-        
+      reader.onload = (ev) => {
+        const base64 = (ev.target?.result as string).split(",")[1];
         setFiles(prev => [...prev, {
           name: file.name,
           mimeType: file.type,
-          content: base64Content,
-          preview: isImage ? URL.createObjectURL(file) : undefined
+          content: base64,
+          preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
         }]);
       };
       reader.readAsDataURL(file);
     });
-    
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const removeFile = (index: number) => {
+  const removeFile = (i: number) => {
     setFiles(prev => {
-      const newFiles = [...prev];
-      if (newFiles[index].preview) {
-        URL.revokeObjectURL(newFiles[index].preview!);
-      }
-      newFiles.splice(index, 1);
-      return newFiles;
+      const next = [...prev];
+      if (next[i].preview) URL.revokeObjectURL(next[i].preview!);
+      next.splice(i, 1);
+      return next;
     });
   };
 
   const handleAnalyze = () => {
     if (!symptoms.trim()) return;
-    
     triageMutation.mutate(
       {
         data: {
           symptoms,
-          files: files.length > 0 ? files.map(f => ({
-            name: f.name,
-            mimeType: f.mimeType,
-            content: f.content
-          })) : undefined
-        }
+          files: files.length > 0 ? files.map(f => ({ name: f.name, mimeType: f.mimeType, content: f.content })) : undefined,
+        },
       },
       {
         onSuccess: (data) => {
           setResult(data as unknown as TriageResult);
-        }
+          setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        },
       }
     );
   };
 
-  const renderDisclaimer = () => (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="min-h-[100dvh] flex items-center justify-center p-4 bg-background"
-    >
-      <Card className="w-full max-w-md shadow-lg border-primary/10">
-        <CardHeader className="text-center pb-4">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-            <ShieldAlert size={24} />
-          </div>
-          <CardTitle className="text-2xl font-serif text-foreground">Important Notice</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm text-muted-foreground leading-relaxed">
-          <p>
-            This is AI-generated reference info only, not medical advice or diagnosis. Not a substitute for a doctor.
-          </p>
-          <p>
-            No medications or treatments recommended. In a life-threatening emergency, call 911 immediately.
-          </p>
-          <p className="font-medium text-foreground">
-            By continuing, user agrees to consult a healthcare professional.
-          </p>
-        </CardContent>
-        <CardFooter>
-          <Button 
-            className="w-full text-base h-12" 
-            size="lg" 
-            onClick={handleAcceptDisclaimer}
-            data-testid="button-accept-disclaimer"
-          >
-            I understand — continue
-          </Button>
-        </CardFooter>
-      </Card>
-    </motion.div>
-  );
-
-  const renderInput = () => (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="max-w-2xl mx-auto w-full space-y-8"
-    >
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl md:text-4xl font-serif font-medium text-foreground">Caire AI</h1>
-        <p className="text-muted-foreground">Home health triage reference</p>
-      </div>
-
-      <div className="space-y-4 bg-card p-6 rounded-2xl shadow-sm border">
-        <div className="space-y-2">
-          <label htmlFor="symptoms" className="text-sm font-medium text-foreground block">
-            Describe the symptoms
-          </label>
-          <Textarea 
-            id="symptoms"
-            placeholder="My 7-year-old has had a fever of 103°F for 2 days, sore throat, and won't eat. No rash."
-            className="min-h-[150px] resize-y text-base p-4"
-            value={symptoms}
-            onChange={(e) => setSymptoms(e.target.value)}
-            disabled={triageMutation.isPending}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-foreground">Attachments (Optional)</span>
-            <span className="text-xs text-muted-foreground">{files.length}/4 files</span>
-          </div>
-          
-          {files.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {files.map((file, idx) => (
-                <div key={idx} className="relative group rounded-xl border bg-muted/50 aspect-square overflow-hidden flex flex-col items-center justify-center p-2">
-                  {file.preview ? (
-                    <img src={file.preview} alt={file.name} className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <FileText className="w-8 h-8 text-muted-foreground mb-2" />
-                  )}
-                  {!file.preview && <span className="text-[10px] text-muted-foreground truncate w-full text-center px-1">{file.name}</span>}
-                  
-                  <button 
-                    onClick={() => removeFile(idx)}
-                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    type="button"
-                    disabled={triageMutation.isPending}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {files.length < 4 && (
-            <div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*,application/pdf"
-                multiple
-                onChange={handleFileUpload}
-                disabled={triageMutation.isPending}
-              />
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full border-dashed border-2 hover:bg-muted/50 h-auto py-4"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={triageMutation.isPending}
-              >
-                <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                  <UploadCloud size={20} />
-                  <span className="text-sm">Click to upload images or PDF</span>
-                </div>
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <Button 
-          className="w-full h-14 text-base" 
-          size="lg"
-          disabled={!symptoms.trim() || triageMutation.isPending}
-          onClick={handleAnalyze}
-          data-testid="button-analyze"
-        >
-          Analyze symptoms
-        </Button>
-      </div>
-
-      {triageMutation.isError && (
-        <div className="p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <p>There was an error connecting to the AI models. Please try again.</p>
-        </div>
-      )}
-    </motion.div>
-  );
-
-  const renderAnalyzing = () => (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-2xl mx-auto w-full space-y-8"
-    >
-      <div className="text-center space-y-2 opacity-50 pointer-events-none">
-        <h1 className="text-3xl md:text-4xl font-serif font-medium text-foreground">Caire AI</h1>
-        <p className="text-muted-foreground">Home health triage reference</p>
-      </div>
-
-      <div className="text-center py-12 space-y-8">
-        <Spinner className="size-10 mx-auto text-primary" />
-        <p className="text-lg font-medium animate-pulse text-foreground">Consulting 3 AI models simultaneously...</p>
-        
-        <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
-          {['Claude', 'GPT', 'Gemini'].map(model => (
-            <div key={model} className="bg-card border rounded-xl p-4 flex flex-col items-center gap-3">
-              <Spinner className="text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">{model}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-
   const printReport = () => {
     if (!result) return;
-    const urgencyInfo = URGENCY_DETAILS[result.consensus_urgency as keyof typeof URGENCY_DETAILS] || URGENCY_DETAILS[4];
-    const date = new Date().toLocaleDateString("en-US", {
-      weekday: "long", year: "numeric", month: "long", day: "numeric"
-    });
+    const urg = URGENCY[result.consensus_urgency as keyof typeof URGENCY] || URGENCY[4];
+    const date = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     const modelSections = result.results.map((r: ModelResult) => {
-      if (!r.success) return `<div class="model-card"><strong>${r.model}</strong>Could not reach this model.</div>`;
-      return `<div class="model-card"><strong>${r.model}</strong>${r.summary || ""}<br/><em>${(r.considerations || []).join("; ")}</em></div>`;
+      if (!r.success) return `<div class="mc"><strong>${r.model}</strong>Could not reach this model.</div>`;
+      return `<div class="mc"><strong>${r.model}</strong>${r.summary || ""}<br/><em>${(r.considerations || []).join("; ")}</em></div>`;
     }).join("");
-
     const win = window.open("", "_blank");
     if (!win) return;
-    win.document.write(`
-      <!DOCTYPE html><html><head>
-      <title>Caire AI — Assessment Report</title>
-      <style>
-        body { font-family: Georgia, serif; max-width: 680px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
-        .header { border-bottom: 2px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 24px; }
-        .header h1 { font-size: 22px; margin: 0 0 4px; }
-        .header p { font-size: 13px; color: #666; margin: 0; }
-        .urgency-box { border: 1.5px solid #1a1a1a; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; }
-        .urgency-box h2 { font-size: 17px; margin: 0 0 4px; }
-        .urgency-box p { font-size: 13px; margin: 0; color: #444; }
-        .section-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin: 24px 0 10px; }
-        .symptoms-box { background: #f5f5f5; border-radius: 6px; padding: 12px 16px; font-size: 14px; line-height: 1.6; }
-        .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-        .model-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; }
-        .model-card strong { display: block; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
-        .disclaimer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; line-height: 1.6; }
-      </style></head><body>
-      <div class="header">
-        <h1>Caire AI — Assessment Report</h1>
-        <p>Generated ${date} · For reference only — not a medical diagnosis</p>
-      </div>
-      <div class="section-title">Symptoms described</div>
-      <div class="symptoms-box">${symptoms}</div>
-      <div class="section-title">Urgency assessment</div>
-      <div class="urgency-box">
-        <h2>${urgencyInfo.title}</h2>
-        <p>${urgencyInfo.desc}</p>
-      </div>
-      <div class="section-title">What each AI assessed</div>
-      <div class="model-grid">${modelSections}</div>
-      <div class="disclaimer">
-        This report was generated by Caire AI and contains AI-generated observations only. It is not a medical diagnosis,
-        does not constitute medical advice, and must not be used as a substitute for professional medical evaluation.
-        Always consult a licensed healthcare professional. In an emergency, call 911.
-      </div>
-      </body></html>
-    `);
+    win.document.write(`<!DOCTYPE html><html><head><title>Caire AI — Assessment Report</title>
+    <style>body{font-family:Georgia,serif;max-width:680px;margin:40px auto;padding:0 24px;color:#1a1a1a;}
+    .hd{border-bottom:2px solid #1a1a1a;padding-bottom:16px;margin-bottom:24px;}
+    .hd h1{font-size:22px;margin:0 0 4px;}.hd p{font-size:13px;color:#666;margin:0;}
+    .ub{border:1.5px solid #1a1a1a;border-radius:4px;padding:14px 18px;margin-bottom:24px;}
+    .ub h2{font-size:17px;margin:0 0 4px;}.ub p{font-size:13px;margin:0;color:#444;}
+    .st{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#888;margin:24px 0 10px;}
+    .sb{background:#f5f5f5;border-radius:4px;padding:12px 16px;font-size:14px;line-height:1.6;}
+    .mg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+    .mc{border:1px solid #ddd;border-radius:4px;padding:12px;font-size:12px;line-height:1.5;}
+    .mc strong{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#888;margin-bottom:6px;}
+    .ds{margin-top:32px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#888;line-height:1.6;}
+    @media print{button{display:none}}</style></head><body>
+    <div class="hd"><h1>Caire AI — Assessment Report</h1><p>Generated ${date} · For reference only — not a medical diagnosis</p></div>
+    <div class="st">Symptoms described</div><div class="sb">${symptoms}</div>
+    <div class="st">Urgency assessment</div><div class="ub"><h2>${urg.label}</h2><p>${urg.sub}</p></div>
+    <div class="st">What each AI assessed</div><div class="mg">${modelSections}</div>
+    <div class="ds">This report was generated by Caire AI and contains AI-generated observations only. It is not a medical diagnosis, does not constitute medical advice, and must not be used as a substitute for professional medical evaluation. Always consult a licensed healthcare professional. In an emergency, call 911.</div>
+    </body></html>`);
     win.document.close();
     win.print();
   };
 
-  const renderResults = () => {
-    if (!result) return null;
+  const nav = (
+    <nav className="caire-nav">
+      <div className="caire-wordmark">Caire <span>AI</span></div>
+      <div className="caire-nav-tag">Reference only</div>
+    </nav>
+  );
 
-    const urgencyInfo = URGENCY_DETAILS[result.consensus_urgency as keyof typeof URGENCY_DETAILS] || URGENCY_DETAILS[4];
-    const UrgencyIcon = urgencyInfo.icon;
-
-    // Consensus computations
-    const validResults = result.results.filter((r: ModelResult) => r.success && r.urgency);
-    const urgencies = validResults.map((r: ModelResult) => r.urgency as number);
-    const allAgree = urgencies.length > 0 && urgencies.every((u: number) => u === urgencies[0]);
-    const maxDiff = urgencies.length > 1 ? Math.max(...urgencies) - Math.min(...urgencies) : 0;
-    const allConsiderations = validResults.flatMap((r: ModelResult) => r.considerations || []);
-
-    const countMap: Record<string, { text: string; count: number }> = {};
-    allConsiderations.forEach((c: string) => {
-      const key = c.toLowerCase().slice(0, 40);
-      if (!countMap[key]) countMap[key] = { text: c, count: 0 };
-      countMap[key].count++;
-    });
-    const shared = Object.values(countMap).filter(v => v.count >= 2).map(v => v.text).slice(0, 3);
-    const uniquePoints = validResults.map((r: ModelResult) => ({
-      model: r.model,
-      unique: (r.considerations || []).filter((p: string) => countMap[p.toLowerCase().slice(0, 40)]?.count === 1)
-    })).filter((m: { model: string; unique: string[] }) => m.unique.length > 0);
-
-    let alignDotClass: string, alignmentText: string;
-    if (allAgree) {
-      alignDotClass = "bg-green-500";
-      alignmentText = `All ${validResults.length} models agree on urgency: <strong>${validResults[0]?.urgency_label ?? ""}</strong>. This consistency increases confidence in the assessment.`;
-    } else if (maxDiff <= 1) {
-      alignDotClass = "bg-orange-400";
-      alignmentText = "Models differ by one urgency tier. The most cautious recommendation is shown above. When in doubt, treat as the higher urgency.";
-    } else {
-      alignDotClass = "bg-red-500";
-      alignmentText = "Models disagree significantly on urgency. This level of uncertainty is itself a reason to consult a healthcare professional promptly.";
-    }
-
+  if (!hasAccepted) {
     return (
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-5xl mx-auto w-full space-y-6 pb-24"
-      >
-        <div className="flex justify-between items-center pb-4 border-b">
-          <h1 className="text-2xl font-serif font-medium text-foreground">Caire AI</h1>
-          <Button variant="ghost" onClick={handleReset} data-testid="button-reset">
-            Start a new assessment
-          </Button>
-        </div>
-
-        {/* Urgency Banner */}
-        <div className={`rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 ${urgencyInfo.bg} ${urgencyInfo.text} shadow-md`}>
-          <div className="bg-white/20 p-3 rounded-full shrink-0">
-            <UrgencyIcon size={32} />
-          </div>
-          <div>
-            <h2 className="text-xl md:text-2xl font-semibold mb-1">{urgencyInfo.title}</h2>
-            <p className="opacity-90 text-sm md:text-base">{urgencyInfo.desc}</p>
-          </div>
-        </div>
-
-        {/* Model Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {result.results.map((modelResult: ModelResult, idx: number) => {
-            if (!modelResult.success || !modelResult.urgency) {
-              return (
-                <Card key={idx} className="border-red-100 bg-red-50/50" data-testid={`card-error-${modelResult.model}`}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{modelResult.model}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-red-600 flex items-center gap-2">
-                    <AlertCircle size={16} />
-                    Could not reach this model
-                  </CardContent>
-                </Card>
-              );
-            }
-
-            const cardUrgencyInfo = URGENCY_DETAILS[modelResult.urgency as keyof typeof URGENCY_DETAILS] || URGENCY_DETAILS[4];
-            
-            return (
-              <Card key={idx} className="shadow-sm h-full flex flex-col" data-testid={`card-model-${modelResult.model}`}>
-                <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-base">{modelResult.model}</CardTitle>
-                    <Badge variant="outline" className={`font-medium ${cardUrgencyInfo.badgeClass}`}>
-                      {modelResult.urgency_label || `Tier ${modelResult.urgency}`}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 flex-grow space-y-4">
-                  <p className="text-sm text-foreground leading-relaxed">{modelResult.summary}</p>
-                  
-                  {modelResult.considerations && modelResult.considerations.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ask your doctor about:</p>
-                      <ul className="text-sm space-y-1.5">
-                        {modelResult.considerations.map((item: string, i: number) => (
-                          <li key={i} className="flex gap-2 items-start text-foreground/80">
-                            <span className="text-primary mt-1 shrink-0">•</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Consensus Panel */}
-        <Card className="bg-slate-50 border-slate-200">
-          <CardContent className="pt-6 space-y-0">
-
-            {/* Block 1: Where models align */}
-            <div className="consensus-block">
-              <p className="consensus-block-title">Where models align</p>
-              <div className="flex items-start gap-3">
-                <div className={`w-3 h-3 rounded-full shrink-0 mt-1 ${alignDotClass}`} />
-                <p className="text-sm text-foreground" dangerouslySetInnerHTML={{ __html: alignmentText }} />
-              </div>
-              {shared.length > 0 && (
-                <div className="flex items-start gap-3 mt-3">
-                  <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-green-500" />
-                  <p className="text-sm text-foreground">
-                    <strong>All models flagged:</strong> {shared.join(" · ")}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Block 2: Key differences */}
-            {uniquePoints.length > 0 && (
-              <div className="consensus-block">
-                <p className="consensus-block-title">Key differences</p>
-                {uniquePoints.map((m: { model: string; unique: string[] }, i: number) => (
-                  <div key={i} className="flex items-start gap-3 mt-2 first:mt-0">
-                    <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-orange-400" />
-                    <p className="text-sm text-foreground">
-                      <strong>{m.model} only flagged:</strong> {m.unique.join("; ")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Block 3: Actionable insights */}
-            <div className="consensus-block">
-              <p className="consensus-block-title">Actionable insights for caregivers</p>
-              <div className="flex items-start gap-3">
-                <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-green-500" />
-                <p className="text-sm text-foreground">
-                  <strong>Watch for immediately:</strong> {getEscalationTriggers(validResults)}
-                </p>
-              </div>
-              <div className="flex items-start gap-3 mt-3">
-                <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-green-500" />
-                <p className="text-sm text-foreground">
-                  <strong>When you see the doctor, mention:</strong>{" "}
-                  {shared.slice(0, 2).join("; ") || "the timeline, severity, and any changes in symptoms"}
-                </p>
-              </div>
-              <div className="flex items-start gap-3 mt-3">
-                <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-orange-400" />
-                <p className="text-sm text-muted-foreground">
-                  These are AI-generated observations, not diagnoses. Use this as a starting point for a conversation with a doctor.
-                </p>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
-        {/* Print Button */}
-        <button className="print-btn" onClick={printReport} data-testid="button-print">
-          <Printer size={15} />
-          Save or print this report
-          <span className="print-hint">Bring to your doctor's appointment</span>
-        </button>
-
-        {/* Bottom Disclaimer */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-md border-t border-border z-10">
-          <div className="max-w-5xl mx-auto flex items-center justify-center gap-3 text-xs text-muted-foreground text-center">
-            <Info className="w-4 h-4 shrink-0" />
-            <p>
-              These assessments are generated by AI and are not medical diagnoses. Always consult a licensed healthcare professional. This tool does not prescribe, diagnose, or provide medical treatment of any kind.
+      <div style={{ minHeight: "100vh", background: "#F7F5F0" }}>
+        {nav}
+        <div className="caire-gate">
+          <div className="caire-gate-inner">
+            <div className="caire-eyebrow">Before you begin</div>
+            <h1 className="caire-gate-title">
+              A reference point,<br /><em>not</em> a diagnosis.
+            </h1>
+            <p className="caire-gate-body">
+              Caire uses three AI models to help you decide whether a health situation needs urgent attention — not to replace your doctor.
             </p>
+            <ul className="caire-gate-list">
+              <li>AI-generated reference information only</li>
+              <li>No medications or treatments are recommended</li>
+              <li>Always consult a licensed healthcare professional</li>
+              <li>For emergencies, call 911 immediately</li>
+            </ul>
+            <button className="caire-btn-dark" onClick={handleAccept} data-testid="button-accept-disclaimer">
+              I understand — continue
+            </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
-  };
-
-  if (!hasAcceptedDisclaimer) {
-    return renderDisclaimer();
   }
 
+  const validResults = result
+    ? result.results.filter((r: ModelResult) => r.success && r.urgency)
+    : [];
+
   return (
-    <div className="min-h-[100dvh] w-full bg-background p-4 md:p-8 pt-12 md:pt-16">
-      <AnimatePresence mode="wait">
-        {triageMutation.isPending ? (
-          <div key="analyzing">{renderAnalyzing()}</div>
-        ) : result ? (
-          <div key="results">{renderResults()}</div>
-        ) : (
-          <div key="input">{renderInput()}</div>
+    <div style={{ minHeight: "100vh", background: "#F7F5F0", paddingBottom: "4rem" }}>
+      {nav}
+
+      {/* Input */}
+      <div className="caire-section">
+        <div className="caire-field-label">Describe what's happening</div>
+        <textarea
+          className="caire-textarea"
+          placeholder="e.g. My 7-year-old has had a fever of 103°F for 2 days, sore throat, and won't eat. No rash. No known sick contacts."
+          value={symptoms}
+          onChange={(e) => setSymptoms(e.target.value)}
+          disabled={triageMutation.isPending}
+          data-testid="input-symptoms"
+        />
+
+        {files.length > 0 && (
+          <div className="caire-files-grid">
+            {files.map((f, i) => (
+              <div key={i} className="caire-file-thumb">
+                {f.preview
+                  ? <img src={f.preview} alt={f.name} />
+                  : <div className="caire-file-icon"><FileText size={16} /></div>}
+                {!f.preview && <span>{f.name}</span>}
+                <button onClick={() => removeFile(i)} type="button" disabled={triageMutation.isPending}>
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
-      </AnimatePresence>
+
+        {files.length < 4 && (
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              accept="image/*,application/pdf"
+              multiple
+              onChange={handleFileUpload}
+              disabled={triageMutation.isPending}
+            />
+            <div
+              className="caire-upload"
+              onClick={() => !triageMutation.isPending && fileInputRef.current?.click()}
+            >
+              <div className="caire-upload-icon">↑</div>
+              <p>Add photos or documents<br />Rash photos, lab results, prescription documents</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="caire-section" style={{ paddingTop: "1rem" }}>
+        {triageMutation.isPending ? (
+          <div className="caire-loading">Consulting 3 AI models simultaneously…</div>
+        ) : (
+          <button
+            className="caire-analyze-btn"
+            onClick={handleAnalyze}
+            disabled={!symptoms.trim()}
+            data-testid="button-analyze"
+          >
+            Assess with 3 AI models
+          </button>
+        )}
+        {triageMutation.isError && (
+          <div className="caire-error">
+            <AlertCircle size={14} />
+            There was an error connecting to the AI models. Please try again.
+          </div>
+        )}
+      </div>
+
+      {/* Results */}
+      {result && (
+        <div ref={resultsRef}>
+          <div className="caire-divider" />
+
+          {/* Urgency */}
+          <div className="caire-urgency-wrap">
+            <div className="caire-field-label">Urgency assessment</div>
+            {(() => {
+              const urg = URGENCY[result.consensus_urgency as keyof typeof URGENCY] || URGENCY[4];
+              return (
+                <div className="caire-urgency" style={{ background: urg.bg, color: urg.text }}>
+                  <div className="caire-urg-num" style={{ color: urg.num }}>
+                    {result.consensus_urgency}
+                  </div>
+                  <div>
+                    <div className="caire-urg-title">{urg.label}</div>
+                    <div className="caire-urg-sub">{urg.sub}</div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Model Cards */}
+          <div className="caire-cards-wrap">
+            <div className="caire-field-label">What each model assessed</div>
+            <div className="caire-cards">
+              {result.results.map((r: ModelResult, i: number) => {
+                if (!r.success || !r.urgency) {
+                  return (
+                    <div key={i} className="caire-card" data-testid={`card-error-${r.model}`}>
+                      <div className="caire-card-model">{r.model}</div>
+                      <div className="caire-card-error">
+                        <AlertCircle size={12} /> Could not reach this model
+                      </div>
+                    </div>
+                  );
+                }
+                const urg = URGENCY[r.urgency as keyof typeof URGENCY] || URGENCY[4];
+                return (
+                  <div key={i} className="caire-card" data-testid={`card-model-${r.model}`}>
+                    <div className="caire-card-model">{r.model}</div>
+                    <div className="caire-pill" style={{ background: urg.pillBg, color: urg.pillText }}>
+                      {r.urgency_label || urg.short}
+                    </div>
+                    <div className="caire-card-summary">{r.summary}</div>
+                    {r.considerations && r.considerations.length > 0 && (
+                      <div className="caire-card-asks">
+                        <strong>Ask your doctor about</strong>
+                        {r.considerations.join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Consensus */}
+          {validResults.length >= 2 && (() => {
+            const urgencies = validResults.map((r: ModelResult) => r.urgency as number);
+            const allAgree = urgencies.every((u: number) => u === urgencies[0]);
+            const maxDiff = urgencies.length > 1 ? Math.max(...urgencies) - Math.min(...urgencies) : 0;
+            const allConsiderations = validResults.flatMap((r: ModelResult) => r.considerations || []);
+
+            const countMap: Record<string, { text: string; count: number }> = {};
+            allConsiderations.forEach((c: string) => {
+              const key = c.toLowerCase().slice(0, 40);
+              if (!countMap[key]) countMap[key] = { text: c, count: 0 };
+              countMap[key].count++;
+            });
+            const shared = Object.values(countMap).filter(v => v.count >= 2).map(v => v.text).slice(0, 3);
+            const uniquePoints = validResults
+              .map((r: ModelResult) => ({
+                model: r.model,
+                unique: (r.considerations || []).filter((p: string) => countMap[p.toLowerCase().slice(0, 40)]?.count === 1),
+              }))
+              .filter((m: { model: string; unique: string[] }) => m.unique.length > 0);
+
+            let dotClass: string;
+            let alignHtml: string;
+            if (allAgree) {
+              dotClass = "caire-dot-g";
+              const firstUrg = URGENCY[validResults[0]?.urgency as keyof typeof URGENCY] || URGENCY[4];
+              alignHtml = `All ${validResults.length} models agree on urgency: <strong>${firstUrg.label}.</strong> This consistency increases confidence in the assessment.`;
+            } else if (maxDiff <= 1) {
+              dotClass = "caire-dot-a";
+              alignHtml = "Models differ by one urgency tier. The most cautious recommendation is shown above. When in doubt, treat as the higher urgency.";
+            } else {
+              dotClass = "caire-dot-r";
+              alignHtml = "Models disagree significantly on urgency. This level of uncertainty is itself a reason to consult a healthcare professional promptly.";
+            }
+
+            return (
+              <div className="caire-consensus-wrap">
+                <div className="caire-field-label">Consensus summary</div>
+                <div className="caire-consensus">
+                  <div className="caire-c-header">Where the models align and differ</div>
+
+                  <div className="caire-c-block">
+                    <div className="caire-c-block-title">Where models align</div>
+                    <div className="caire-c-row">
+                      <div className={`caire-dot ${dotClass}`} />
+                      <div dangerouslySetInnerHTML={{ __html: alignHtml }} />
+                    </div>
+                    {shared.length > 0 && (
+                      <div className="caire-c-row">
+                        <div className="caire-dot caire-dot-g" />
+                        <div>All models flagged: {shared.join(" · ")}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {uniquePoints.length > 0 && (
+                    <div className="caire-c-block">
+                      <div className="caire-c-block-title">Key differences</div>
+                      {uniquePoints.map((m: { model: string; unique: string[] }, i: number) => (
+                        <div key={i} className="caire-c-row">
+                          <div className="caire-dot caire-dot-a" />
+                          <div><strong>{m.model} only flagged:</strong> {m.unique.join("; ")}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="caire-c-block">
+                    <div className="caire-c-block-title">Actionable insights for caregivers</div>
+                    <div className="caire-c-row">
+                      <div className="caire-dot caire-dot-g" />
+                      <div><strong>Watch for immediately:</strong> {getEscalationTriggers(validResults)}</div>
+                    </div>
+                    <div className="caire-c-row">
+                      <div className="caire-dot caire-dot-g" />
+                      <div>
+                        <strong>When you see the doctor, mention:</strong>{" "}
+                        {shared.slice(0, 2).join("; ") || "the timeline, severity, and any changes in symptoms"}
+                      </div>
+                    </div>
+                    <div className="caire-c-row">
+                      <div className="caire-dot caire-dot-a" />
+                      <div>These are AI-generated observations, not diagnoses. Use this as a starting point for a conversation with a doctor.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Disclaimer */}
+          <div className="caire-disclaimer">
+            <div className="caire-disclaimer-inner">
+              <span style={{ flexShrink: 0, marginTop: "1px" }}>!</span>
+              <span>These assessments are generated by AI and are not medical diagnoses. Always consult a licensed healthcare professional. This tool does not prescribe, diagnose, or provide medical treatment of any kind.</span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="caire-actions">
+            <button className="caire-btn-print" onClick={printReport} data-testid="button-print">
+              ↓ Save or print this report
+              <span style={{ fontSize: "11px", color: "#C8C4BC", marginLeft: "4px" }}>— bring to your appointment</span>
+            </button>
+            <button className="caire-btn-reset" onClick={handleReset} data-testid="button-reset">
+              Start a new assessment
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -618,7 +428,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={TriageApp} />
-      <Route component={NotFound} />
     </Switch>
   );
 }
@@ -626,12 +435,9 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <Router />
+      </WouterRouter>
     </QueryClientProvider>
   );
 }

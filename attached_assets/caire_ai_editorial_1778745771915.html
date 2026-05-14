@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caire AI — Editorial UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#F7F5F0;font-family:'DM Sans',sans-serif;font-weight:400;color:#1C1A17;}
+
+nav{background:#F7F5F0;border-bottom:0.5px solid #D8D4CC;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;}
+.wordmark{font-family:'DM Serif Display',serif;font-size:22px;color:#1C1A17;letter-spacing:-0.02em;}
+.wordmark span{font-size:11px;font-family:'DM Sans',sans-serif;font-weight:400;color:#8A8478;margin-left:6px;letter-spacing:0.06em;text-transform:uppercase;}
+.nav-tag{font-size:11px;color:#8A8478;letter-spacing:0.06em;text-transform:uppercase;border:0.5px solid #D8D4CC;padding:4px 12px;border-radius:20px;}
+
+/* GATE */
+.gate{min-height:calc(100vh - 57px);display:flex;align-items:center;justify-content:center;padding:3rem 1.5rem;}
+.gate-inner{max-width:460px;width:100%;}
+.eyebrow{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8478;margin-bottom:1rem;}
+.gate-title{font-family:'DM Serif Display',serif;font-size:34px;line-height:1.12;color:#1C1A17;margin-bottom:1.25rem;letter-spacing:-0.02em;}
+.gate-body{font-size:14px;color:#5A5650;line-height:1.8;margin-bottom:1rem;}
+.gate-list{list-style:none;margin-bottom:2rem;}
+.gate-list li{font-size:13px;color:#5A5650;padding:8px 0;border-top:0.5px solid #E8E4DC;display:flex;gap:12px;line-height:1.5;}
+.gate-list li:last-child{border-bottom:0.5px solid #E8E4DC;}
+.gate-list li::before{content:'—';color:#C8C4BC;flex-shrink:0;}
+.gate-btn{width:100%;padding:14px 20px;background:#1C1A17;color:#F7F5F0;border:none;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:0.01em;transition:background 0.15s;}
+.gate-btn:hover{background:#2E2B26;}
+
+/* MAIN */
+.main{display:none;padding-bottom:4rem;}
+.main.visible{display:block;}
+
+.section{padding:2rem 1.5rem 0;max-width:760px;margin:0 auto;}
+
+.field-label{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8478;font-weight:500;margin-bottom:0.625rem;}
+
+textarea{width:100%;background:#FFFFFF;border:0.5px solid #D8D4CC;border-radius:3px;padding:14px 16px;font-family:'DM Sans',sans-serif;font-size:14px;color:#1C1A17;line-height:1.7;resize:vertical;min-height:100px;outline:none;transition:border-color 0.15s;}
+textarea::placeholder{color:#C8C4BC;}
+textarea:focus{border-color:#8A8478;}
+
+.upload{margin-top:0.75rem;border:0.5px dashed #D8D4CC;border-radius:3px;padding:1.25rem;text-align:center;cursor:pointer;background:#FDFCF9;transition:background 0.15s;}
+.upload:hover{background:#F0EDE6;}
+.upload-icon{font-size:20px;color:#C8C4BC;}
+.upload p{font-size:12px;color:#8A8478;margin-top:6px;line-height:1.5;}
+
+.analyze-btn{width:100%;margin-top:1rem;padding:14px;background:#1C1A17;color:#F7F5F0;border:none;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.15s;}
+.analyze-btn:hover{background:#2E2B26;}
+
+.divider{height:0.5px;background:#E8E4DC;margin:2rem auto 0;max-width:760px;margin-left:auto;margin-right:auto;}
+
+/* URGENCY */
+.urgency-wrap{padding:2rem 1.5rem 0;max-width:760px;margin:0 auto;}
+.urgency{border-radius:3px;padding:1.75rem 2rem;display:flex;align-items:flex-start;gap:1.5rem;}
+.urg-num{font-family:'DM Serif Display',serif;font-size:64px;line-height:1;flex-shrink:0;opacity:0.85;}
+.urg-body{}
+.urg-title{font-family:'DM Serif Display',serif;font-size:24px;line-height:1.2;margin-bottom:6px;letter-spacing:-0.01em;}
+.urg-sub{font-size:13px;opacity:0.72;line-height:1.5;}
+
+.urg-2{background:#FAEEDA;color:#412402;}
+.urg-2 .urg-num{color:#854F0B;}
+.urg-1{background:#FCEBEB;color:#501313;}
+.urg-1 .urg-num{color:#A32D2D;}
+.urg-3{background:#EAF3DE;color:#173404;}
+.urg-3 .urg-num{color:#3B6D11;}
+.urg-4{background:#E6F1FB;color:#042C53;}
+.urg-4 .urg-num{color:#185FA5;}
+
+/* CARDS */
+.cards-wrap{padding:2rem 1.5rem 0;max-width:760px;margin:0 auto;}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0.75rem;}
+.card{background:#FFFFFF;border:0.5px solid #D8D4CC;border-radius:3px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;gap:10px;}
+.card-model{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8478;font-weight:500;}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 8px;border-radius:2px;width:fit-content;}
+.pill-amber{background:#FAEEDA;color:#633806;}
+.pill-red{background:#FCEBEB;color:#791F1F;}
+.pill-green{background:#EAF3DE;color:#27500A;}
+.pill-blue{background:#E6F1FB;color:#0C447C;}
+.card-summary{font-size:12px;color:#3D3A35;line-height:1.65;flex:1;}
+.card-asks{font-size:11px;color:#8A8478;line-height:1.6;border-top:0.5px solid #F0EDE6;padding-top:8px;}
+.card-asks strong{display:block;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;color:#C8C4BC;}
+
+/* CONSENSUS */
+.consensus-wrap{padding:2rem 1.5rem 0;max-width:760px;margin:0 auto;}
+.consensus{background:#FFFFFF;border:0.5px solid #D8D4CC;border-radius:3px;padding:1.5rem 1.75rem;}
+.c-header{font-family:'DM Serif Display',serif;font-size:19px;color:#1C1A17;margin-bottom:1.5rem;letter-spacing:-0.01em;}
+.c-block{margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:0.5px solid #F0EDE6;}
+.c-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.c-block-title{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#C8C4BC;font-weight:500;margin-bottom:0.625rem;}
+.c-row{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:13px;color:#5A5650;line-height:1.6;}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.dot-g{background:#639922;}
+.dot-a{background:#BA7517;}
+.dot-r{background:#A32D2D;}
+.c-row strong{color:#1C1A17;font-weight:500;}
+
+/* DISCLAIMER */
+.disclaimer{max-width:760px;margin:1.5rem auto 0;padding:0 1.5rem;}
+.disclaimer-inner{padding:0.875rem 1rem;border:0.5px solid #E8E4DC;border-radius:3px;font-size:11px;color:#8A8478;line-height:1.7;display:flex;gap:8px;align-items:flex-start;background:#FDFCF9;}
+
+/* ACTIONS */
+.actions{max-width:760px;margin:1rem auto 0;padding:0 1.5rem;display:flex;flex-direction:column;gap:0.5rem;}
+.btn-print{width:100%;padding:12px;background:transparent;border:0.5px solid #D8D4CC;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:13px;color:#3D3A35;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.15s;}
+.btn-print:hover{background:#F0EDE6;}
+.btn-reset{width:100%;padding:10px;background:transparent;border:none;font-family:'DM Sans',sans-serif;font-size:12px;color:#C8C4BC;cursor:pointer;transition:color 0.15s;}
+.btn-reset:hover{color:#5A5650;}
+
+@media(max-width:600px){
+  .cards{grid-template-columns:1fr;}
+  .gate-title{font-size:28px;}
+  .urg-num{font-size:48px;}
+  .urg-title{font-size:20px;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wordmark">Caire <span>AI</span></div>
+  <div class="nav-tag">Reference only</div>
+</nav>
+
+<!-- GATE -->
+<div class="gate" id="gate">
+  <div class="gate-inner">
+    <div class="eyebrow">Before you begin</div>
+    <h1 class="gate-title">A reference point,<br><em>not</em> a diagnosis.</h1>
+    <p class="gate-body">Caire uses three AI models to help you decide whether a health situation needs urgent attention — not to replace your doctor.</p>
+    <ul class="gate-list">
+      <li>AI-generated reference information only</li>
+      <li>No medications or treatments are recommended</li>
+      <li>Always consult a licensed healthcare professional</li>
+      <li>For emergencies, call 911 immediately</li>
+    </ul>
+    <button class="gate-btn" onclick="openApp()">I understand — continue</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="main" id="mainApp">
+
+  <div class="section">
+    <div class="field-label">Describe what's happening</div>
+    <textarea id="symText" placeholder="e.g. My 7-year-old has had a fever of 103°F for 2 days, sore throat, and won't eat. No rash. No known sick contacts."></textarea>
+    <div class="upload">
+      <div class="upload-icon">↑</div>
+      <p>Add photos or documents<br>Rash photos, lab results, prescription documents</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <button class="analyze-btn" onclick="showResults()">
+      Assess with 3 AI models
+    </button>
+  </div>
+
+  <div id="results" style="display:none;">
+
+    <div class="divider" style="margin-top:2rem;"></div>
+
+    <div class="urgency-wrap">
+      <div class="field-label">Urgency assessment</div>
+      <div class="urgency urg-2">
+        <div class="urg-num">2</div>
+        <div class="urg-body">
+          <div class="urg-title">See a doctor within 24 hours</div>
+          <div class="urg-sub">Contact your doctor or urgent care today.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cards-wrap">
+      <div class="field-label">What each model assessed</div>
+      <div class="cards">
+
+        <div class="card">
+          <div class="card-model">Claude</div>
+          <div class="pill pill-amber">See doctor soon</div>
+          <div class="card-summary">Wheezing in a 4-year-old, even without fever, can suggest airway narrowing worth discussing with a doctor promptly. Questions to raise include whether this could relate to asthma or a reactive airway condition.</div>
+          <div class="card-asks">
+            <strong>Ask your doctor about</strong>
+            Watch for worsening breathing, ribs pulling in, or bluish lips · When wheezing started and if prior episodes · Whether breathing in, out, or both
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-model">GPT-4o</div>
+          <div class="pill pill-amber">See doctor soon</div>
+          <div class="card-summary">A 4-year-old with wheezing and a dry cough should be discussed with a doctor soon, even without fever. Questions include whether this could relate to asthma, an allergic reaction, or another breathing issue.</div>
+          <div class="card-asks">
+            <strong>Ask your doctor about</strong>
+            Fast breathing, ribs pulling in, trouble speaking · Past wheezing, allergies, recent exposures · Whether cough worsens at night or during activity
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-model">Gemini</div>
+          <div class="pill pill-amber">See doctor soon</div>
+          <div class="card-summary">Wheezing and dry cough suggest narrowing or irritation in the airways. Even without fever, a provider should listen to their lungs. You may want to ask about specific breathing evaluations needed.</div>
+          <div class="card-asks">
+            <strong>Ask your doctor about</strong>
+            Flaring nostrils, fast breathing, skin retractions — go to ER if these occur · Exact timeline, worsening at night · What the absence of fever may suggest
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="consensus-wrap">
+      <div class="field-label">Consensus summary</div>
+      <div class="consensus">
+        <div class="c-header">Where the models align and differ</div>
+
+        <div class="c-block">
+          <div class="c-block-title">Where models align</div>
+          <div class="c-row">
+            <div class="dot dot-g"></div>
+            <div>All 3 models agree on urgency: <strong>See a doctor within 24 hours.</strong> This consistency increases confidence in the assessment.</div>
+          </div>
+          <div class="c-row">
+            <div class="dot dot-g"></div>
+            <div>All models flagged: worsening breathing difficulty · ribs pulling in · go to ER if those signs appear</div>
+          </div>
+        </div>
+
+        <div class="c-block">
+          <div class="c-block-title">Key differences</div>
+          <div class="c-row">
+            <div class="dot dot-a"></div>
+            <div><strong>Gemini only flagged:</strong> the absence of fever as diagnostically relevant — may help the doctor distinguish asthma from infection</div>
+          </div>
+          <div class="c-row">
+            <div class="dot dot-a"></div>
+            <div><strong>Claude only flagged:</strong> noting whether wheezing occurs breathing in, out, or both</div>
+          </div>
+        </div>
+
+        <div class="c-block">
+          <div class="c-block-title">Actionable insights for caregivers</div>
+          <div class="c-row">
+            <div class="dot dot-g"></div>
+            <div><strong>Watch for immediately:</strong> any rapid worsening of breathing — go to the ER immediately if flaring nostrils, retractions, or bluish lips appear</div>
+          </div>
+          <div class="c-row">
+            <div class="dot dot-g"></div>
+            <div><strong>When you see the doctor, mention:</strong> when wheezing started, any prior episodes, and whether it changes with activity or time of day</div>
+          </div>
+          <div class="c-row">
+            <div class="dot dot-a"></div>
+            <div>These are AI-generated observations, not diagnoses. Use this as a starting point for a conversation with a doctor.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <div class="disclaimer-inner">
+        <span style="flex-shrink:0;margin-top:1px;">!</span>
+        <span>These assessments are generated by AI and are not medical diagnoses. Always consult a licensed healthcare professional. This tool does not prescribe, diagnose, or provide medical treatment of any kind.</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-print">
+        ↓ Save or print this report
+        <span style="font-size:11px;color:#C8C4BC;margin-left:4px;">— bring to your appointment</span>
+      </button>
+      <button class="btn-reset" onclick="resetApp()">Start a new assessment</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function openApp(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('mainApp').classList.add('visible');
+}
+function showResults(){
+  const t=document.getElementById('symText').value.trim();
+  if(!t){document.getElementById('symText').style.borderColor='#E24B4A';setTimeout(()=>document.getElementById('symText').style.borderColor='',2000);return;}
+  document.getElementById('results').style.display='block';
+  setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+function resetApp(){
+  document.getElementById('results').style.display='none';
+  document.getElementById('symText').value='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
