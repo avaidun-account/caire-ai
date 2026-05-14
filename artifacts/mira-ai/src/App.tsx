@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { useRunTriage } from "@workspace/api-client-react";
-import { TriageResult } from "@workspace/api-zod/src/generated/types/triageResult";
+import type { TriageResult } from "@workspace/api-zod";
+import type { ModelResult } from "@workspace/api-zod";
 import { 
   AlertCircle,
   Ambulance, 
@@ -22,11 +23,24 @@ import {
   Image as ImageIcon, 
   X,
   ShieldAlert,
-  Info
+  Info,
+  Printer
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const queryClient = new QueryClient();
+
+// Helper: escalation trigger text based on urgency level and model text
+function getEscalationTriggers(validResults: TriageResult["results"]): string {
+  const urgencies = validResults.map((r: ModelResult) => r.urgency as number).filter(Boolean);
+  const urgencyLevel = urgencies.length > 0 ? Math.min(...urgencies) : 4;
+  if (urgencyLevel === 1) return "Go to the ER immediately — do not wait.";
+  const allText = validResults.flatMap((r: ModelResult) => r.considerations || []).join(" ").toLowerCase();
+  if (allText.includes("er") || allText.includes("emergency") || allText.includes("911")) {
+    return "Any rapid worsening — go to the ER immediately if that occurs.";
+  }
+  return "Any significant worsening, new symptoms, or gut feeling something is wrong — seek care sooner.";
+}
 
 // Types for file handling
 type UploadedFile = {
@@ -316,13 +330,13 @@ function TriageApp() {
       </div>
 
       <div className="text-center py-12 space-y-8">
-        <Spinner size="lg" className="mx-auto text-primary" />
+        <Spinner className="size-10 mx-auto text-primary" />
         <p className="text-lg font-medium animate-pulse text-foreground">Consulting 3 AI models simultaneously...</p>
         
         <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
           {['Claude', 'GPT', 'Gemini'].map(model => (
             <div key={model} className="bg-card border rounded-xl p-4 flex flex-col items-center gap-3">
-              <Spinner size="sm" className="text-muted-foreground" />
+              <Spinner className="text-muted-foreground" />
               <span className="text-sm font-medium text-muted-foreground">{model}</span>
             </div>
           ))}
@@ -331,11 +345,97 @@ function TriageApp() {
     </motion.div>
   );
 
+  const printReport = () => {
+    if (!result) return;
+    const urgencyInfo = URGENCY_DETAILS[result.consensus_urgency as keyof typeof URGENCY_DETAILS] || URGENCY_DETAILS[4];
+    const date = new Date().toLocaleDateString("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+    const modelSections = result.results.map((r: ModelResult) => {
+      if (!r.success) return `<div class="model-card"><strong>${r.model}</strong>Could not reach this model.</div>`;
+      return `<div class="model-card"><strong>${r.model}</strong>${r.summary || ""}<br/><em>${(r.considerations || []).join("; ")}</em></div>`;
+    }).join("");
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`
+      <!DOCTYPE html><html><head>
+      <title>Caire AI — Assessment Report</title>
+      <style>
+        body { font-family: Georgia, serif; max-width: 680px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
+        .header { border-bottom: 2px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 24px; }
+        .header h1 { font-size: 22px; margin: 0 0 4px; }
+        .header p { font-size: 13px; color: #666; margin: 0; }
+        .urgency-box { border: 1.5px solid #1a1a1a; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; }
+        .urgency-box h2 { font-size: 17px; margin: 0 0 4px; }
+        .urgency-box p { font-size: 13px; margin: 0; color: #444; }
+        .section-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin: 24px 0 10px; }
+        .symptoms-box { background: #f5f5f5; border-radius: 6px; padding: 12px 16px; font-size: 14px; line-height: 1.6; }
+        .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+        .model-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; }
+        .model-card strong { display: block; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+        .disclaimer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; line-height: 1.6; }
+      </style></head><body>
+      <div class="header">
+        <h1>Caire AI — Assessment Report</h1>
+        <p>Generated ${date} · For reference only — not a medical diagnosis</p>
+      </div>
+      <div class="section-title">Symptoms described</div>
+      <div class="symptoms-box">${symptoms}</div>
+      <div class="section-title">Urgency assessment</div>
+      <div class="urgency-box">
+        <h2>${urgencyInfo.title}</h2>
+        <p>${urgencyInfo.desc}</p>
+      </div>
+      <div class="section-title">What each AI assessed</div>
+      <div class="model-grid">${modelSections}</div>
+      <div class="disclaimer">
+        This report was generated by Caire AI and contains AI-generated observations only. It is not a medical diagnosis,
+        does not constitute medical advice, and must not be used as a substitute for professional medical evaluation.
+        Always consult a licensed healthcare professional. In an emergency, call 911.
+      </div>
+      </body></html>
+    `);
+    win.document.close();
+    win.print();
+  };
+
   const renderResults = () => {
     if (!result) return null;
 
     const urgencyInfo = URGENCY_DETAILS[result.consensus_urgency as keyof typeof URGENCY_DETAILS] || URGENCY_DETAILS[4];
     const UrgencyIcon = urgencyInfo.icon;
+
+    // Consensus computations
+    const validResults = result.results.filter((r: ModelResult) => r.success && r.urgency);
+    const urgencies = validResults.map((r: ModelResult) => r.urgency as number);
+    const allAgree = urgencies.length > 0 && urgencies.every((u: number) => u === urgencies[0]);
+    const maxDiff = urgencies.length > 1 ? Math.max(...urgencies) - Math.min(...urgencies) : 0;
+    const allConsiderations = validResults.flatMap((r: ModelResult) => r.considerations || []);
+
+    const countMap: Record<string, { text: string; count: number }> = {};
+    allConsiderations.forEach((c: string) => {
+      const key = c.toLowerCase().slice(0, 40);
+      if (!countMap[key]) countMap[key] = { text: c, count: 0 };
+      countMap[key].count++;
+    });
+    const shared = Object.values(countMap).filter(v => v.count >= 2).map(v => v.text).slice(0, 3);
+    const uniquePoints = validResults.map((r: ModelResult) => ({
+      model: r.model,
+      unique: (r.considerations || []).filter((p: string) => countMap[p.toLowerCase().slice(0, 40)]?.count === 1)
+    })).filter((m: { model: string; unique: string[] }) => m.unique.length > 0);
+
+    let alignDotClass: string, alignmentText: string;
+    if (allAgree) {
+      alignDotClass = "bg-green-500";
+      alignmentText = `All ${validResults.length} models agree on urgency: <strong>${validResults[0]?.urgency_label ?? ""}</strong>. This consistency increases confidence in the assessment.`;
+    } else if (maxDiff <= 1) {
+      alignDotClass = "bg-orange-400";
+      alignmentText = "Models differ by one urgency tier. The most cautious recommendation is shown above. When in doubt, treat as the higher urgency.";
+    } else {
+      alignDotClass = "bg-red-500";
+      alignmentText = "Models disagree significantly on urgency. This level of uncertainty is itself a reason to consult a healthcare professional promptly.";
+    }
 
     return (
       <motion.div 
@@ -363,7 +463,7 @@ function TriageApp() {
 
         {/* Model Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {result.results.map((modelResult, idx) => {
+          {result.results.map((modelResult: ModelResult, idx: number) => {
             if (!modelResult.success || !modelResult.urgency) {
               return (
                 <Card key={idx} className="border-red-100 bg-red-50/50" data-testid={`card-error-${modelResult.model}`}>
@@ -397,7 +497,7 @@ function TriageApp() {
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ask your doctor about:</p>
                       <ul className="text-sm space-y-1.5">
-                        {modelResult.considerations.map((item, i) => (
+                        {modelResult.considerations.map((item: string, i: number) => (
                           <li key={i} className="flex gap-2 items-start text-foreground/80">
                             <span className="text-primary mt-1 shrink-0">•</span>
                             <span>{item}</span>
@@ -414,41 +514,73 @@ function TriageApp() {
 
         {/* Consensus Panel */}
         <Card className="bg-slate-50 border-slate-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 mt-1">
-                {result.agreement_level === 'full' && <div className="w-4 h-4 rounded-full bg-green-500 shadow-sm" />}
-                {result.agreement_level === 'partial' && <div className="w-4 h-4 rounded-full bg-orange-400 shadow-sm" />}
-                {result.agreement_level === 'none' && <div className="w-4 h-4 rounded-full bg-red-500 shadow-sm" />}
-              </div>
-              <div className="space-y-4">
-                <p className="text-sm font-medium text-foreground">
-                  {result.agreement_level === 'full' && "All models agree on urgency level — this consensus increases confidence in the assessment."}
-                  {result.agreement_level === 'partial' && "Models differ by one tier on urgency. Out of caution, the higher urgency recommendation is shown."}
-                  {result.agreement_level === 'none' && "Models disagree significantly on urgency level. This uncertainty is itself a reason to consult a healthcare professional."}
-                </p>
+          <CardContent className="pt-6 space-y-0">
 
-                {result.common_considerations && result.common_considerations.length > 0 && (
-                  <div className="space-y-2 bg-white p-4 rounded-xl border border-border/50">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Common observations</p>
-                    <ul className="text-sm space-y-1.5">
-                      {result.common_considerations.map((item, i) => (
-                        <li key={i} className="flex gap-2 items-start text-foreground/80">
-                          <span className="text-primary mt-1 shrink-0">•</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+            {/* Block 1: Where models align */}
+            <div className="consensus-block">
+              <p className="consensus-block-title">Where models align</p>
+              <div className="flex items-start gap-3">
+                <div className={`w-3 h-3 rounded-full shrink-0 mt-1 ${alignDotClass}`} />
+                <p className="text-sm text-foreground" dangerouslySetInnerHTML={{ __html: alignmentText }} />
+              </div>
+              {shared.length > 0 && (
+                <div className="flex items-start gap-3 mt-3">
+                  <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-green-500" />
+                  <p className="text-sm text-foreground">
+                    <strong>All models flagged:</strong> {shared.join(" · ")}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Block 2: Key differences */}
+            {uniquePoints.length > 0 && (
+              <div className="consensus-block">
+                <p className="consensus-block-title">Key differences</p>
+                {uniquePoints.map((m: { model: string; unique: string[] }, i: number) => (
+                  <div key={i} className="flex items-start gap-3 mt-2 first:mt-0">
+                    <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-orange-400" />
+                    <p className="text-sm text-foreground">
+                      <strong>{m.model} only flagged:</strong> {m.unique.join("; ")}
+                    </p>
                   </div>
-                )}
-                
-                <p className="text-sm text-muted-foreground italic border-t pt-4">
+                ))}
+              </div>
+            )}
+
+            {/* Block 3: Actionable insights */}
+            <div className="consensus-block">
+              <p className="consensus-block-title">Actionable insights for caregivers</p>
+              <div className="flex items-start gap-3">
+                <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-green-500" />
+                <p className="text-sm text-foreground">
+                  <strong>Watch for immediately:</strong> {getEscalationTriggers(validResults)}
+                </p>
+              </div>
+              <div className="flex items-start gap-3 mt-3">
+                <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-green-500" />
+                <p className="text-sm text-foreground">
+                  <strong>When you see the doctor, mention:</strong>{" "}
+                  {shared.slice(0, 2).join("; ") || "the timeline, severity, and any changes in symptoms"}
+                </p>
+              </div>
+              <div className="flex items-start gap-3 mt-3">
+                <div className="w-3 h-3 rounded-full shrink-0 mt-1 bg-orange-400" />
+                <p className="text-sm text-muted-foreground">
                   These are AI-generated observations, not diagnoses. Use this as a starting point for a conversation with a doctor.
                 </p>
               </div>
             </div>
+
           </CardContent>
         </Card>
+
+        {/* Print Button */}
+        <button className="print-btn" onClick={printReport} data-testid="button-print">
+          <Printer size={15} />
+          Save or print this report
+          <span className="print-hint">Bring to your doctor's appointment</span>
+        </button>
 
         {/* Bottom Disclaimer */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-md border-t border-border z-10">

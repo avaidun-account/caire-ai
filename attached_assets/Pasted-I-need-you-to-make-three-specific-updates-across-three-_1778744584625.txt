@@ -1,0 +1,251 @@
+I need you to make 
+three specific updates across three files. Do not change anything 
+else.
+
+---
+
+FILE 1: script.js
+
+STEP 1 — Find the existing buildConsensus() function and replace 
+it entirely with this:
+
+function buildConsensus(results) {
+  const valid = results.filter(r => r.result);
+  if (valid.length < 2) return;
+
+  const urgencies = valid.map(r => r.result.urgency);
+  const allAgree = urgencies.every(u => u === urgencies[0]);
+  const maxDiff = Math.max(...urgencies) - Math.min(...urgencies);
+  const allConsiderations = valid.flatMap(r => r.result.considerations || []);
+
+  let dotClass, alignmentText;
+  if (allAgree) {
+    dotClass = 'dot-agree';
+    alignmentText = `All 3 models agree on urgency: <strong>${valid[0].result.urgency_label}</strong>. This consistency increases confidence in the assessment.`;
+  } else if (maxDiff === 1) {
+    dotClass = 'dot-warn';
+    alignmentText = `Models differ by one urgency tier. The most cautious recommendation is shown above. When in doubt, treat as the higher urgency.`;
+  } else {
+    dotClass = 'dot-disagree';
+    alignmentText = `Models disagree significantly on urgency. This level of uncertainty is itself a reason to consult a healthcare professional promptly.`;
+  }
+
+  const countMap = {};
+  allConsiderations.forEach(c => {
+    const key = c.toLowerCase().slice(0, 40);
+    if (!countMap[key]) countMap[key] = { text: c, count: 0 };
+    countMap[key].count++;
+  });
+  const shared = Object.values(countMap)
+    .filter(v => v.count >= 2)
+    .map(v => v.text)
+    .slice(0, 3);
+
+  const allPoints = valid.map(r => ({
+    model: r.model,
+    points: r.result.considerations || []
+  }));
+  const uniquePoints = allPoints.map(m => ({
+    model: m.model,
+    unique: m.points.filter(p =>
+      countMap[p.toLowerCase().slice(0, 40)]?.count === 1
+    )
+  })).filter(m => m.unique.length > 0);
+
+  const container = document.getElementById('consensusRows');
+  container.innerHTML = `
+    <div class="consensus-block">
+      <div class="consensus-block-title">Where models align</div>
+      <div class="consensus-row">
+        <div class="dot ${dotClass}"></div>
+        <div class="consensus-text">${alignmentText}</div>
+      </div>
+      ${shared.length > 0 ? `
+      <div class="consensus-row">
+        <div class="dot dot-agree"></div>
+        <div class="consensus-text"><strong>All models flagged:</strong> ${shared.join(' · ')}</div>
+      </div>` : ''}
+    </div>
+
+    ${uniquePoints.length > 0 ? `
+    <div class="consensus-block">
+      <div class="consensus-block-title">Key differences</div>
+      ${uniquePoints.map(m => `
+      <div class="consensus-row">
+        <div class="dot dot-warn"></div>
+        <div class="consensus-text"><strong>${m.model} only flagged:</strong> ${m.unique.join('; ')}</div>
+      </div>`).join('')}
+    </div>` : ''}
+
+    <div class="consensus-block">
+      <div class="consensus-block-title">Actionable insights for caregivers</div>
+      <div class="consensus-row">
+        <div class="dot dot-agree"></div>
+        <div class="consensus-text"><strong>Watch for immediately:</strong> ${getEscalationTriggers(valid)}</div>
+      </div>
+      <div class="consensus-row">
+        <div class="dot dot-agree"></div>
+        <div class="consensus-text"><strong>When you see the doctor, mention:</strong> ${shared.slice(0, 2).join('; ') || 'the timeline, severity, and any changes in symptoms'}</div>
+      </div>
+      <div class="consensus-row">
+        <div class="dot dot-warn"></div>
+        <div class="consensus-text">These are AI-generated observations, not diagnoses. Use this as a starting point for a conversation with a doctor.</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('consensusCard').style.display = 'block';
+  document.getElementById('printBtn').style.display = 'block';
+}
+
+STEP 2 — Paste these two functions directly after the closing 
+brace of buildConsensus:
+
+function getEscalationTriggers(valid) {
+  const urgencyLevel = Math.min(...valid.map(r => r.result.urgency));
+  if (urgencyLevel === 1) return 'Go to the ER immediately — do not wait.';
+  const allText = valid.flatMap(r => r.result.considerations || []).join(' ').toLowerCase();
+  if (allText.includes('er') || allText.includes('emergency') || allText.includes('911')) {
+    return 'Any rapid worsening — go to the ER immediately if that occurs.';
+  }
+  return 'Any significant worsening, new symptoms, or gut feeling something is wrong — seek care sooner.';
+}
+
+function printReport() {
+  const symptoms = document.getElementById('symptomText').value;
+  const urgencyTitle = document.getElementById('urgencyTitle').textContent;
+  const urgencySubtitle = document.getElementById('urgencySubtitle').textContent;
+  const consensusHTML = document.getElementById('consensusRows').innerHTML;
+  const claudeCard = document.getElementById('card-claude').innerText;
+  const gptCard = document.getElementById('card-gpt').innerText;
+  const geminiCard = document.getElementById('card-gemini').innerText;
+  const date = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html><html><head>
+    <title>Caire AI — Assessment Report</title>
+    <style>
+      body { font-family: Georgia, serif; max-width: 680px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
+      .header { border-bottom: 2px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 24px; }
+      .header h1 { font-size: 22px; margin: 0 0 4px; }
+      .header p { font-size: 13px; color: #666; margin: 0; }
+      .urgency-box { border: 1.5px solid #1a1a1a; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; }
+      .urgency-box h2 { font-size: 17px; margin: 0 0 4px; }
+      .urgency-box p { font-size: 13px; margin: 0; color: #444; }
+      .section-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin: 24px 0 10px; }
+      .symptoms-box { background: #f5f5f5; border-radius: 6px; padding: 12px 16px; font-size: 14px; line-height: 1.6; }
+      .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+      .model-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; }
+      .model-card strong { display: block; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+      .disclaimer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; line-height: 1.6; }
+    </style></head><body>
+    <div class="header">
+      <h1>Caire AI — Assessment Report</h1>
+      <p>Generated ${date} · For reference only — not a medical diagnosis</p>
+    </div>
+    <div class="section-title">Symptoms described</div>
+    <div class="symptoms-box">${symptoms}</div>
+    <div class="section-title">Urgency assessment</div>
+    <div class="urgency-box">
+      <h2>${urgencyTitle}</h2>
+      <p>${urgencySubtitle}</p>
+    </div>
+    <div class="section-title">What each AI assessed</div>
+    <div class="model-grid">
+      <div class="model-card"><strong>Claude</strong>${claudeCard}</div>
+      <div class="model-card"><strong>GPT-4o</strong>${gptCard}</div>
+      <div class="model-card"><strong>Gemini</strong>${geminiCard}</div>
+    </div>
+    <div class="section-title">Consensus summary</div>
+    <div>${consensusHTML}</div>
+    <div class="disclaimer">
+      This report was generated by Caire AI and contains AI-generated 
+      observations only. It is not a medical diagnosis, does not 
+      constitute medical advice, and must not be used as a substitute 
+      for professional medical evaluation. Always consult a licensed 
+      healthcare professional. In an emergency, call 911.
+    </div>
+    </body></html>
+  `);
+  win.document.close();
+  win.print();
+}
+
+---
+
+FILE 2: index.html
+
+Find the button with class "reset-btn" at the bottom of the 
+results section. Add this new button ABOVE it:
+
+<button id="printBtn" class="print-btn" onclick="printReport()" 
+  style="display:none;">
+  Save or print this report
+  <span class="print-hint">Bring to your doctor's appointment</span>
+</button>
+
+---
+
+FILE 3: style.css
+
+Paste this block at the very bottom of the file:
+
+.consensus-block {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 0.5px solid #e5e5e5;
+}
+.consensus-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.consensus-block-title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #999;
+  margin-bottom: 0.75rem;
+}
+.print-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 11px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.print-btn:hover { background: #f0f0f0; }
+.print-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #999;
+}
+@media print {
+  .print-btn, .reset-btn, .analyze-btn,
+  .upload-zone, .disclaimer-gate { display: none !important; }
+}
+
+---
+
+IMPORTANT RULES FOR THE AGENT:
+- Do not rewrite or restructure any other part of the codebase
+- Do not rename any existing functions or IDs
+- Do not change the API call logic
+- After making all three changes, confirm which lines were 
+  modified in each file
+- If any function or element referenced above is not found 
+  exactly as named, stop and tell me what you found instead 
+  of guessing
