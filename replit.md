@@ -1,4 +1,4 @@
-# Mira AI
+# Caire AI
 
 A home health triage reference tool that sends a user's symptoms and uploaded files to 3 AI models simultaneously, then compares and summarizes their responses so the user can decide whether to go to the ER, see a doctor, or monitor at home.
 

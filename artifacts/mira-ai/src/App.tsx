@@ -208,7 +208,7 @@ function TriageApp() {
       className="max-w-2xl mx-auto w-full space-y-8"
     >
       <div className="text-center space-y-2">
-        <h1 className="text-3xl md:text-4xl font-serif font-medium text-foreground">Mira AI</h1>
+        <h1 className="text-3xl md:text-4xl font-serif font-medium text-foreground">Caire AI</h1>
         <p className="text-muted-foreground">Home health triage reference</p>
       </div>
 
@@ -311,7 +311,7 @@ function TriageApp() {
       className="max-w-2xl mx-auto w-full space-y-8"
     >
       <div className="text-center space-y-2 opacity-50 pointer-events-none">
-        <h1 className="text-3xl md:text-4xl font-serif font-medium text-foreground">Mira AI</h1>
+        <h1 className="text-3xl md:text-4xl font-serif font-medium text-foreground">Caire AI</h1>
         <p className="text-muted-foreground">Home health triage reference</p>
       </div>
 
@@ -344,7 +344,7 @@ function TriageApp() {
         className="max-w-5xl mx-auto w-full space-y-6 pb-24"
       >
         <div className="flex justify-between items-center pb-4 border-b">
-          <h1 className="text-2xl font-serif font-medium text-foreground">Mira AI</h1>
+          <h1 className="text-2xl font-serif font-medium text-foreground">Caire AI</h1>
           <Button variant="ghost" onClick={handleReset} data-testid="button-reset">
             Start a new assessment
           </Button>
