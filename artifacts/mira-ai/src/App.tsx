@@ -275,41 +275,6 @@ function TriageApp() {
             })()}
           </div>
 
-          {/* Model Cards */}
-          <div className="caire-cards-wrap">
-            <div className="caire-field-label">What each model assessed</div>
-            <div className="caire-cards">
-              {result.results.map((r: ModelResult, i: number) => {
-                if (!r.success || !r.urgency) {
-                  return (
-                    <div key={i} className="caire-card" data-testid={`card-error-${r.model}`}>
-                      <div className="caire-card-model">{r.model}</div>
-                      <div className="caire-card-error">
-                        <AlertCircle size={12} /> Could not reach this model
-                      </div>
-                    </div>
-                  );
-                }
-                const urg = URGENCY[r.urgency as keyof typeof URGENCY] || URGENCY[4];
-                return (
-                  <div key={i} className="caire-card" data-testid={`card-model-${r.model}`}>
-                    <div className="caire-card-model">{r.model}</div>
-                    <div className="caire-pill" style={{ background: urg.pillBg, color: urg.pillText }}>
-                      {r.urgency_label || urg.short}
-                    </div>
-                    <div className="caire-card-summary">{r.summary}</div>
-                    {r.considerations && r.considerations.length > 0 && (
-                      <div className="caire-card-asks">
-                        <strong>Ask your doctor about</strong>
-                        {r.considerations.join(" · ")}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Consensus */}
           {validResults.length >= 2 && (() => {
             const urgencies = validResults.map((r: ModelResult) => r.urgency as number);
@@ -399,6 +364,41 @@ function TriageApp() {
               </div>
             );
           })()}
+
+          {/* Model Cards */}
+          <div className="caire-cards-wrap">
+            <div className="caire-field-label">What each model assessed</div>
+            <div className="caire-cards">
+              {result.results.map((r: ModelResult, i: number) => {
+                if (!r.success || !r.urgency) {
+                  return (
+                    <div key={i} className="caire-card" data-testid={`card-error-${r.model}`}>
+                      <div className="caire-card-model">{r.model}</div>
+                      <div className="caire-card-error">
+                        <AlertCircle size={12} /> Could not reach this model
+                      </div>
+                    </div>
+                  );
+                }
+                const urg = URGENCY[r.urgency as keyof typeof URGENCY] || URGENCY[4];
+                return (
+                  <div key={i} className="caire-card" data-testid={`card-model-${r.model}`}>
+                    <div className="caire-card-model">{r.model}</div>
+                    <div className="caire-pill" style={{ background: urg.pillBg, color: urg.pillText }}>
+                      {r.urgency_label || urg.short}
+                    </div>
+                    <div className="caire-card-summary">{r.summary}</div>
+                    {r.considerations && r.considerations.length > 0 && (
+                      <div className="caire-card-asks">
+                        <strong>Ask your doctor about</strong>
+                        {r.considerations.join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Disclaimer */}
           <div className="caire-disclaimer">
